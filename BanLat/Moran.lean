@@ -1,5 +1,5 @@
 /-
-Authors: Yuhang Xie
+Authors: Yuhao Xie
 -/
 
 import Mathlib.Algebra.BigOperators.Group.Finset.Interval
