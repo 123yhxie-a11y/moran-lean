@@ -2,10 +2,11 @@ Release verification
 
 Toolchain: leanprover/lean4:v4.32.1
 Module: Moran.Moran
-Source SHA-256: 405892a08f02aa9fef500554265b0efd822c9aec7d1d60815163259ceb7bb963
+Source SHA-256: f924140c48647c1bea9ca2d2b380d41432aa12d97a0b3f3d6e14c105f76ad61c
 
-lake build --wfail -q --log-level=info
+lake build --wfail
 Exit code: 0
+Build completed successfully (3619 jobs).
 
 lake env lean MoranCheck.lean
 Exit code: 0
@@ -36,3 +37,9 @@ Moran.spectralMoranData_is_salem (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) :
 'Moran.spectralMoranData_has_spectrum' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Moran.spectralMoranSpectrum_countable' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Moran.spectralMoranData_is_salem' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Additional private-lemma axiom checks (Lean MCP):
+Moran.spectralMoranData_mask_error_uniform: [propext, Classical.choice, Quot.sound]
+Moran.spectralMoranData_fourier_blockwise: [propext, Classical.choice, Quot.sound]
+Moran.spectralMoranData_base_growth: [propext, Classical.choice, Quot.sound]
+Source scan: no sorry, admit, or project-local axiom declarations.

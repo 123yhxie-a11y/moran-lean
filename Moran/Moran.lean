@@ -1,4 +1,6 @@
-
+/-
+Authors: Yuhang Xie
+-/
 
 import Mathlib.Algebra.BigOperators.Group.Finset.Interval
 import Mathlib.Analysis.Asymptotics.SpecificAsymptotics
@@ -5031,13 +5033,14 @@ private lemma constructionLength_mul_lower {s : ℝ} (hs : 0 < s) (n : ℕ) :
   exact hceil.trans (mul_le_mul_of_nonneg_left
     (Nat.cast_le.mpr (Nat.le_add_left ⌈2 / s⌉₊ (n + 1))) hs.le)
 
+private lemma constructionRank_two_le {s : ℝ} (hs : 0 < s) (n : ℕ) :
+    2 ≤ constructionRank s n := by
+  exact if h : s = 1 then by simp [constructionRank, h] else by
+    simpa only [constructionRank, if_neg h] using Nat.le_floor (constructionLength_mul_lower hs n)
+
 private lemma constructionRank_pos {s : ℝ} (hs : 0 < s) (n : ℕ) :
     0 < constructionRank s n := by
-  unfold constructionRank
-  split_ifs <;> first
-    | omega
-    | exact Nat.floor_pos.mpr ((by norm_num : (1 : ℝ) ≤ 2).trans
-        (constructionLength_mul_lower hs n))
+  exact Nat.zero_lt_two.trans_le (constructionRank_two_le hs n)
 
 private lemma constructionRank_lt {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
     constructionRank s n < constructionLength s n := by
@@ -5065,11 +5068,8 @@ private lemma constructionRank_lower (s : ℝ) (n : ℕ) :
 private def constructionRatio (s : ℝ) (n : ℕ) : ℝ :=
   (constructionRank s n : ℝ) / constructionLength s n
 
-private def constructionLoss (s : ℝ) (n : ℕ) : ℝ :=
-  min (constructionRatio s n / 2) ((constructionLength s n : ℝ) ^ (-(1 / 2 : ℝ)))
-
 private def constructionExponent (s : ℝ) (n : ℕ) : ℝ :=
-  constructionRatio s n - constructionLoss s n
+  ((constructionRank s n : ℝ) - 1) / constructionLength s n
 
 private def constructionDegree (s : ℝ) (n : ℕ) : ℕ :=
   1 + ⌈((constructionLength s n - constructionRank s n : ℕ) : ℝ) /
@@ -5079,11 +5079,6 @@ private lemma tendsto_constructionLength (s : ℝ) :
     Tendsto (fun n ↦ (constructionLength s n : ℝ)) atTop atTop := by
   exact tendsto_natCast_atTop_atTop.comp
     ((tendsto_add_atTop_nat ⌈2 / s⌉₊).comp (tendsto_add_atTop_nat 1))
-
-private lemma constructionRatio_pos {s : ℝ} (hs : 0 < s) (n : ℕ) :
-    0 < constructionRatio s n := by
-  exact div_pos (Nat.cast_pos.mpr (constructionRank_pos hs n))
-    (Nat.cast_pos.mpr (constructionLength_pos s n))
 
 private lemma constructionRatio_le {s : ℝ} (hs : 0 < s) (n : ℕ) :
     constructionRatio s n ≤ s := by
@@ -5098,15 +5093,11 @@ private lemma constructionRatio_error (s : ℝ) (n : ℕ) :
       (constructionRank s n : ℝ)
       (Nat.cast_ne_zero.mpr (constructionLength_pos s n).ne')])
 
-private lemma constructionLoss_pos {s : ℝ} (hs : 0 < s) (n : ℕ) :
-    0 < constructionLoss s n := by
-  exact lt_min (half_pos (constructionRatio_pos hs n))
-    (Real.rpow_pos_of_pos (Nat.cast_pos.mpr (constructionLength_pos s n)) _)
-
 private lemma constructionExponent_pos {s : ℝ} (hs : 0 < s) (n : ℕ) :
     0 < constructionExponent s n := by
-  exact sub_pos.mpr ((min_le_left _ _).trans_lt
-    (half_lt_self (constructionRatio_pos hs n)))
+  exact div_pos (sub_pos.mpr (by
+    exact_mod_cast (Nat.lt_of_lt_of_le (by decide : 1 < 2) (constructionRank_two_le hs n))))
+    (Nat.cast_pos.mpr (constructionLength_pos s n))
 
 private lemma tendsto_constructionRatio {s : ℝ} (hs : 0 < s) :
     Tendsto (constructionRatio s) atTop (𝓝 s) := by
@@ -5117,16 +5108,12 @@ private lemma tendsto_constructionRatio {s : ℝ} (hs : 0 < s) :
         (tendsto_constructionLength s).inv_tendsto_atTop.const_mul (1 : ℝ))
   simpa only [sub_sub_cancel, sub_zero] using (tendsto_const_nhds (x := s)).sub hgap
 
-private lemma tendsto_constructionLoss {s : ℝ} (hs : 0 < s) :
-    Tendsto (constructionLoss s) atTop (𝓝 0) := by
-  exact squeeze_zero (fun n ↦ (constructionLoss_pos hs n).le) (fun _ ↦ min_le_right _ _)
-    ((tendsto_rpow_neg_atTop (by norm_num : (0 : ℝ) < 1 / 2)).comp
-      (tendsto_constructionLength s))
-
 private lemma tendsto_constructionExponent {s : ℝ} (hs : 0 < s) :
     Tendsto (constructionExponent s) atTop (𝓝 s) := by
-  change Tendsto (fun n ↦ constructionRatio s n - constructionLoss s n) atTop (𝓝 s)
-  simpa only [sub_zero] using (tendsto_constructionRatio hs).sub (tendsto_constructionLoss hs)
+  change Tendsto (fun n ↦ ((constructionRank s n : ℝ) - 1) / constructionLength s n)
+    atTop (𝓝 s)
+  simpa only [constructionRatio, sub_div, one_div, Pi.inv_apply, sub_zero] using
+    (tendsto_constructionRatio hs).sub (tendsto_constructionLength s).inv_tendsto_atTop
 
 private lemma constructionDegree_two_le {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
     2 ≤ constructionDegree s n := by
@@ -5151,43 +5138,26 @@ private lemma constructionLength_le_rank_mul_degree {s : ℝ} (hs : 0 < s)
 private lemma constructionExponent_gap (s : ℝ) (n : ℕ) :
     (constructionRank s n : ℝ) / 2 -
       constructionLength s n * constructionExponent s n / 2 =
-        constructionLength s n * constructionLoss s n / 2 := by
-  simp only [constructionExponent, constructionRatio]
+        1 / 2 := by
+  dsimp only [constructionExponent]
   field_simp [(constructionLength_pos s n).ne']
   ring
-
-private lemma constructionExponent_gap_pos {s : ℝ} (hs : 0 < s) (n : ℕ) :
-    0 < (constructionRank s n : ℝ) / 2 -
-      constructionLength s n * constructionExponent s n / 2 := by
-  rw [constructionExponent_gap]
-  exact half_pos (mul_pos (Nat.cast_pos.mpr (constructionLength_pos s n))
-    (constructionLoss_pos hs n))
-
-private lemma eventually_log_cost_le {C a b : ℝ} (hC : 0 ≤ C) (q : ℕ) (hab : b < a) :
-    ∀ᶠ x : ℝ in atTop, C * (2 * Real.log (2 * x)) ^ q * x ^ (-a) ≤ x ^ (-b) := by
-  filter_upwards [eventually_mul_mask_log_pow_le_rpow hC q (sub_pos.mpr hab),
-    eventually_gt_atTop (0 : ℝ)] with x hx hx₀
-  simpa only [← Real.rpow_add hx₀, show a - b + -a = -b by ring] using
-    mul_le_mul_of_nonneg_right hx (Real.rpow_nonneg hx₀.le (-a))
 
 private def constructionPrimeCondition (s : ℝ) (n P p : ℕ) : Prop :=
   p.Prime ∧ Odd p ∧ constructionDegree s n < p ∧
     P ^ (n + 1) < p ^ constructionLength s n ∧
-    (constructionDegree s n - 1 : ℝ) * (2 * Real.log (2 * p)) ^ constructionLength s n *
-      (p : ℝ) ^ (-(constructionRank s n : ℝ) / 2) ≤
-        (p : ℝ) ^ (-(constructionLength s n : ℝ) * constructionExponent s n / 2)
+    (constructionDegree s n - 1 : ℝ) * (2 * Real.log (2 * p)) ^ constructionLength s n ≤
+      (p : ℝ) ^ (1 / 2 : ℝ)
 
 private lemma eventually_constructionPrime_cost {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1)
     (n : ℕ) :
     ∀ᶠ p : ℕ in atTop,
-      (constructionDegree s n - 1 : ℝ) * (2 * Real.log (2 * p)) ^ constructionLength s n *
-        (p : ℝ) ^ (-(constructionRank s n : ℝ) / 2) ≤
-          (p : ℝ) ^ (-(constructionLength s n : ℝ) * constructionExponent s n / 2) := by
-  simpa only [neg_div, neg_mul] using tendsto_natCast_atTop_atTop.eventually
-    (eventually_log_cost_le (by
-      have h : (2 : ℝ) ≤ constructionDegree s n := by
-        exact_mod_cast constructionDegree_two_le hs hs₁ n
-      linarith) (constructionLength s n) (sub_pos.mp (constructionExponent_gap_pos hs n)))
+      (constructionDegree s n - 1 : ℝ) * (2 * Real.log (2 * p)) ^ constructionLength s n ≤
+        (p : ℝ) ^ (1 / 2 : ℝ) := by
+  exact tendsto_natCast_atTop_atTop.eventually
+    (eventually_mul_mask_log_pow_le_rpow (sub_nonneg.mpr
+      (by exact_mod_cast (Nat.le_trans (by decide : 1 ≤ 2)
+        (constructionDegree_two_le hs hs₁ n)))) (constructionLength s n) (by norm_num))
 
 private lemma exists_constructionPrime {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1) (n P : ℕ) :
     ∃ p, constructionPrimeCondition s n P p := by
@@ -5217,59 +5187,11 @@ private instance constructionPrime_isPrime (s : ℝ) (hs : 0 < s) (hs₁ : s ≤
     Fact (constructionPrime s hs hs₁ n).Prime :=
   ⟨(constructionPrime_spec s hs hs₁ n).1⟩
 
-private lemma constructionLoss_le_half {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
-    constructionLoss s n ≤ 1 / 2 :=
-  (min_le_left _ _).trans (div_le_div_of_nonneg_right
-    ((constructionRatio_le hs n).trans hs₁) (by norm_num))
-
 private lemma constructionPrime_log_cost (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
     let p := constructionPrime s hs hs₁ n
     (constructionDegree s n - 1 : ℝ) * (2 * Real.log (2 * p)) ^ constructionLength s n ≤
-      (p : ℝ) ^ ((constructionLength s n : ℝ) * constructionLoss s n / 2) := by
-  have h := mul_le_mul_of_nonneg_right (constructionPrime_spec s hs hs₁ n).2.2.2.2
-    (Real.rpow_nonneg (Nat.cast_nonneg (constructionPrime s hs hs₁ n))
-      ((constructionRank s n : ℝ) / 2))
-  have hp : (0 : ℝ) < constructionPrime s hs hs₁ n := by
-    exact_mod_cast (constructionPrime_spec s hs hs₁ n).1.pos
-  simpa only [mul_assoc, ← Real.rpow_add hp, neg_div, neg_mul, neg_add_cancel,
-    Real.rpow_zero, mul_one, show
-      -((constructionLength s n : ℝ) * constructionExponent s n / 2) +
-        (constructionRank s n : ℝ) / 2 =
-          constructionLength s n * constructionLoss s n / 2 by
-      linarith [constructionExponent_gap s n]] using h
-
-private lemma sixteen_lt_of_log_cost {p q : ℕ} {C ε : ℝ} (hp : 2 ≤ p)
-    (hq : 0 < q) (hC : 1 ≤ C) (hε : 0 < ε) (hε₁ : ε ≤ 1 / 2)
-    (hcost : C * (2 * Real.log (2 * p)) ^ q ≤ (p : ℝ) ^ ((q : ℝ) * ε / 2)) :
-    16 < p := by
-  by_contra! hsmall
-  have hlog : 1 < Real.log (2 * p) := by
-    have h := Real.log_le_log (by norm_num : (0 : ℝ) < 4)
-      (show (4 : ℝ) ≤ 2 * p by exact_mod_cast (show 4 ≤ 2 * p by omega))
-    rw [show (4 : ℝ) = 2 ^ (2 : ℕ) by norm_num, Real.log_pow] at h
-    norm_num only [Nat.cast_ofNat] at h
-    linarith [Real.log_two_gt_d9]
-  have hupper : (p : ℝ) ^ ((q : ℝ) * ε / 2) ≤ (16 : ℝ) ^ ((q : ℝ) / 4) :=
-    (Real.rpow_le_rpow (Nat.cast_nonneg _) (Nat.cast_le.mpr hsmall)
-      (by positivity)).trans (Real.rpow_le_rpow_of_exponent_le (by norm_num)
-        (by nlinarith [mul_le_mul_of_nonneg_left hε₁ (Nat.cast_nonneg q)]))
-  have hid : (16 : ℝ) ^ ((q : ℝ) / 4) = (2 : ℝ) ^ q := by
-    rw [show (16 : ℝ) = 2 ^ (4 : ℕ) by norm_num,
-      ← Real.rpow_natCast_mul (by norm_num : (0 : ℝ) ≤ 2)]
-    norm_num [show (4 : ℝ) * ((q : ℝ) / 4) = q by ring]
-  exact (not_lt_of_ge (hcost.trans (hupper.trans_eq hid)))
-    ((pow_lt_pow_left₀ (by linarith : (2 : ℝ) < 2 * Real.log (2 * p))
-      (by norm_num) hq.ne').trans_le
-        (le_mul_of_one_le_left (by positivity) hC))
-
-private lemma constructionPrime_sixteen_le (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
-    16 ≤ constructionPrime s hs hs₁ n := by
-  exact (sixteen_lt_of_log_cost (constructionPrime_spec s hs hs₁ n).1.two_le
-    (constructionLength_pos s n) (by
-      have h : (2 : ℝ) ≤ constructionDegree s n := by
-        exact_mod_cast constructionDegree_two_le hs hs₁ n
-      linarith) (constructionLoss_pos hs n) (constructionLoss_le_half hs hs₁ n)
-        (constructionPrime_log_cost s hs hs₁ n)).le
+      (p : ℝ) ^ (1 / 2 : ℝ) := by
+  exact (constructionPrime_spec s hs hs₁ n).2.2.2.2
 
 private lemma norm_average_power_coordinates_le_of_le_mul {p r q d : ℕ}
     [Fact p.Prime] {F : Type*} [Field F] [Fintype F] [Algebra (ZMod p) F]
@@ -5374,14 +5296,47 @@ private lemma spectralMoranData_mask_error (s : ℝ) (hs : 0 < s) (hs₁ : s ≤
     ‖mask (A.digits n) ξ - mask (Finset.range (A.base n)) ξ‖ ≤
       (A.base n : ℝ) ^ (-constructionExponent s n / 2) := by
   refine ((spectralMoranData_mask_error_raw s hs hs₁ n ξ).trans
-    (constructionPrime_spec s hs hs₁ n).2.2.2.2).trans_eq ?_
-  rw [spectralMoranData_base, Nat.cast_pow, ← Real.rpow_natCast_mul (Nat.cast_nonneg _)]
-  congr 1
-  ring
+    (mul_le_mul_of_nonneg_right (constructionPrime_log_cost s hs hs₁ n)
+      (Real.rpow_nonneg (Nat.cast_nonneg _) _))).trans_eq ?_
+  rw [← Real.rpow_add (Nat.cast_pos.mpr (constructionPrime_spec s hs hs₁ n).1.pos),
+    spectralMoranData_base, Nat.cast_pow,
+    ← Real.rpow_natCast_mul (Nat.cast_nonneg _)]
+  exact congrArg ((constructionPrime s hs hs₁ n : ℝ) ^ ·)
+    (by linarith [constructionExponent_gap s n])
+
+private lemma construction_mask_cost_uniform (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
+    {γ : ℝ} (hγs : γ < s / 2) :
+    ∃ C : ℝ, 1 ≤ C ∧ ∀ n,
+      ((spectralMoranData s hs hs₁).base n : ℝ) ^ (-constructionExponent s n / 2) ≤
+        C * ((spectralMoranData s hs hs₁).base n : ℝ) ^ (-γ) := by
+  have hevent : ∀ᶠ n : ℕ in atTop,
+      ((spectralMoranData s hs hs₁).base n : ℝ) ^ (γ - constructionExponent s n / 2) ≤ 1 := by
+    filter_upwards [((tendsto_constructionExponent hs).div_const (2 : ℝ)).eventually
+      (le_mem_nhds hγs)] with n hn using
+      Real.rpow_le_one_of_one_le_of_nonpos
+        (by exact_mod_cast (Nat.one_le_of_lt ((spectralMoranData s hs hs₁).two_le_base n)))
+        (sub_nonpos.mpr hn)
+  obtain ⟨C, hC⟩ := (Filter.isBoundedUnder_of_eventually_le hevent).bddAbove_range
+  refine ⟨max 1 C, le_max_left _ _, fun n ↦ ?_⟩
+  simpa only [← Real.rpow_add (Nat.cast_pos.mpr (Nat.zero_lt_two.trans_le
+      ((spectralMoranData s hs hs₁).two_le_base n))),
+    show γ - constructionExponent s n / 2 + -γ = -constructionExponent s n / 2 by ring] using
+    mul_le_mul_of_nonneg_right ((hC (Set.mem_range_self n)).trans (le_max_right 1 C))
+      (Real.rpow_nonneg (Nat.cast_nonneg ((spectralMoranData s hs hs₁).base n)) (-γ))
+
+private lemma spectralMoranData_mask_error_uniform (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
+    {γ : ℝ} (hγs : γ < s / 2) :
+    ∃ C : ℝ, 1 ≤ C ∧ ∀ n ξ,
+      ‖mask ((spectralMoranData s hs hs₁).digits n) ξ -
+        mask (Finset.range ((spectralMoranData s hs hs₁).base n)) ξ‖ ≤
+          C * ((spectralMoranData s hs hs₁).base n : ℝ) ^ (-γ) := by
+  exact (construction_mask_cost_uniform s hs hs₁ hγs).imp fun C hC ↦
+    ⟨hC.1, fun n ξ ↦ (spectralMoranData_mask_error s hs hs₁ n ξ).trans (hC.2 n)⟩
 
 private lemma constructionExponent_le_one {s : ℝ} (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
-    constructionExponent s n ≤ 1 :=
-  (sub_le_self _ (constructionLoss_pos hs n).le).trans ((constructionRatio_le hs n).trans hs₁)
+    constructionExponent s n ≤ 1 := by
+  exact (div_le_one (Nat.cast_pos.mpr (constructionLength_pos s n))).mpr
+    ((sub_le_self _ zero_le_one).trans (Nat.cast_le.mpr (constructionRank_lt hs hs₁ n).le))
 
 private lemma spectralMoranData_scale_separation (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
     (n : ℕ) :
@@ -5390,6 +5345,39 @@ private lemma spectralMoranData_scale_separation (s : ℝ) (hs : 0 < s) (hs₁ :
   simpa only [spectralMoranData_base, Fin.prod_univ_eq_prod_range
     (fun j ↦ constructionPrime s hs hs₁ j ^ constructionLength s j) n] using
     (constructionPrime_spec s hs hs₁ n).2.2.2.1
+
+private lemma spectralMoranData_base_lt_succ (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
+    (spectralMoranData s hs hs₁).base n < (spectralMoranData s hs hs₁).base (n + 1) := by
+  calc
+    _ ≤ 2 ^ n * (spectralMoranData s hs hs₁).base n :=
+      Nat.le_mul_of_pos_left _ (pow_pos (by decide) n)
+    _ ≤ (spectralMoranData s hs hs₁).scale n :=
+      (spectralMoranData s hs hs₁).two_pow_mul_base_le_scale n
+    _ ≤ ((spectralMoranData s hs hs₁).scale n) ^ (n + 2) := Nat.le_pow (by omega)
+    _ < _ := spectralMoranData_scale_separation s hs hs₁ (n + 1)
+
+private lemma spectralMoranData_base_rpow_le_scale (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
+    {γ : ℝ} (hγ : 0 ≤ γ) (n : ℕ) :
+    let A := spectralMoranData s hs hs₁
+    (A.base n : ℝ) ^ (-γ) ≤ (A.scale n : ℝ) ^ (-(γ * (n + 1) / (n + 2))) := by
+  have hpower : ((spectralMoranData s hs hs₁).scale n : ℝ) ^
+      (γ * (n + 1) / (n + 2)) ≤ ((spectralMoranData s hs hs₁).base n : ℝ) ^ γ := by
+    simpa only [Data.scale, Finset.prod_range_succ, Nat.cast_mul] using
+      mul_rpow_le_rpow_of_separation
+        (by exact_mod_cast (spectralMoranData s hs hs₁).prefix_product_pos n)
+        (Nat.cast_pos.mpr (Nat.zero_lt_two.trans_le
+          ((spectralMoranData s hs hs₁).two_le_base n)))
+        (by exact_mod_cast (spectralMoranData_scale_separation s hs hs₁ n).le)
+        (show 0 ≤ γ - γ * (n + 1) / (n + 2) from sub_nonneg.mpr
+          ((div_le_iff₀ (by positivity)).mpr (by nlinarith)))
+        (show γ * (n + 1) / (n + 2) ≤
+            (n + 1 : ℕ) * (γ - γ * (n + 1) / (n + 2)) from by
+          have h := div_mul_cancel₀ (γ * (n + 1)) (by positivity : (n : ℝ) + 2 ≠ 0)
+          push_cast
+          nlinarith)
+  simpa only [Data.scale, Real.rpow_neg (Nat.cast_nonneg _), one_div] using
+    one_div_le_one_div_of_le (Real.rpow_pos_of_pos
+      (Nat.cast_pos.mpr ((spectralMoranData s hs hs₁).prefix_product_pos (n + 1))) _) hpower
 
 private lemma eventually_constructionExponent_margin (s : ℝ) (hs : 0 < s)
     {a : ℝ} (ha : a < s / 2) :
@@ -5562,6 +5550,77 @@ private lemma spectralMoranData_fourier_upper_half_bound (s : ℝ) (hs : 0 < s)
       (spectralMoranData_mask_error s hs hs₁ n _)
       (spectralMoranData_mask_error s hs hs₁ (n + 1) _)
       (spectralMoranData_mask_error s hs hs₁ (n + 2) _))
+
+private lemma spectralMoranData_fourier_lower_half_uniform (s : ℝ) (hs : 0 < s)
+    (hs₁ : s ≤ 1) {γ C : ℝ} (hγ : 0 ≤ γ) (hC : 0 ≤ C)
+    (hcost : ∀ n, ((spectralMoranData s hs hs₁).base n : ℝ) ^
+      (-constructionExponent s n / 2) ≤ C *
+        ((spectralMoranData s hs hs₁).base n : ℝ) ^ (-γ)) (n : ℕ) (ξ : ℝ) :
+    let A := spectralMoranData s hs hs₁
+    0 < ξ / A.scale n → ξ / A.scale n ≤ A.base (n + 1) / 2 →
+      ‖Fourier.fourierIntegral Real.fourierChar A.measure (fun _ ↦ (1 : ℂ)) ξ‖ ≤
+        C * ((A.scale n : ℝ) ^ (-(γ * (n + 1) / (n + 2))) / (ξ / A.scale n) +
+          (A.base (n + 1) : ℝ) ^ (-γ)) := by
+  intro A ht htN
+  have hprev := (hcost n).trans (mul_le_mul_of_nonneg_left
+    (spectralMoranData_base_rpow_le_scale s hs hs₁ hγ n) hC)
+  have hnum : (A.base n : ℝ)⁻¹ + (A.base n : ℝ) ^ (-constructionExponent s n / 2) ≤
+      2 * (C * (A.scale n : ℝ) ^ (-(γ * (n + 1) / (n + 2)))) := by
+    linarith [inv_base_le_construction_mask_cost s hs hs₁ n]
+  simpa only [mul_div_mul_left _ _ (by norm_num : (2 : ℝ) ≠ 0), mul_add,
+    mul_div_assoc] using
+    (spectralMoranData_fourier_block_bound s hs hs₁ ξ n ht htN).trans
+      (add_le_add (div_le_div_of_nonneg_right hnum (by positivity)) (hcost (n + 1)))
+
+private lemma spectralMoranData_fourier_upper_half_uniform (s : ℝ) (hs : 0 < s)
+    (hs₁ : s ≤ 1) {γ C : ℝ} (hγ : 0 ≤ γ) (hC : 0 ≤ C)
+    (hcost : ∀ n, ((spectralMoranData s hs hs₁).base n : ℝ) ^
+      (-constructionExponent s n / 2) ≤ C *
+        ((spectralMoranData s hs hs₁).base n : ℝ) ^ (-γ)) (n : ℕ) (ξ : ℝ) :
+    let A := spectralMoranData s hs hs₁
+    A.base (n + 1) / 2 ≤ ξ / A.scale n → ξ / A.scale n ≤ A.base (n + 1) →
+      ‖Fourier.fourierIntegral Real.fourierChar A.measure (fun _ ↦ (1 : ℂ)) ξ‖ ≤
+        (9 * C) * (A.base (n + 1) : ℝ) ^ (-γ) := by
+  intro A ht htN
+  have hnext := (hcost (n + 2)).trans (mul_le_mul_of_nonneg_left
+    (Real.rpow_le_rpow_of_nonpos
+      (Nat.cast_pos.mpr (Nat.zero_lt_two.trans_le (A.two_le_base (n + 1))))
+      (Nat.cast_le.mpr (spectralMoranData_base_lt_succ s hs hs₁ (n + 1)).le)
+      (neg_nonpos.mpr hγ)) hC)
+  have h := spectralMoranData_fourier_upper_half_bound s hs hs₁ ξ n ht htN
+  rw [div_eq_mul_inv] at h
+  nlinarith [mul_le_mul_of_nonneg_left (hcost (n + 1)) Real.pi_pos.le,
+    mul_le_mul_of_nonneg_left
+      ((inv_base_le_construction_mask_cost s hs hs₁ (n + 1)).trans (hcost (n + 1)))
+      Real.pi_pos.le,
+    mul_le_mul_of_nonneg_right Real.pi_le_four
+      (mul_nonneg hC (Real.rpow_nonneg (Nat.cast_nonneg (A.base (n + 1))) (-γ)))]
+
+private lemma spectralMoranData_fourier_blockwise (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
+    {γ : ℝ} (hγ : 0 < γ) (hγs : γ < s / 2) :
+    let A := spectralMoranData s hs hs₁
+    ∃ C : ℝ, 0 < C ∧ ∀ n, 1 ≤ n → ∀ ξ : ℝ,
+      A.scale n ≤ ξ → ξ < A.scale (n + 1) →
+        ‖Fourier.fourierIntegral Real.fourierChar A.measure (fun _ ↦ (1 : ℂ)) ξ‖ ≤
+          C * if ξ / A.scale n ≤ A.base (n + 1) / 2 then
+            (A.scale n : ℝ) ^ (-(γ * (n + 1) / (n + 2))) / (ξ / A.scale n) +
+              (A.base (n + 1) : ℝ) ^ (-γ)
+          else (A.base (n + 1) : ℝ) ^ (-γ) := by
+  intro A
+  obtain ⟨C, hC, hcost⟩ := construction_mask_cost_uniform s hs hs₁ hγs
+  refine ⟨9 * C, by positivity, fun n _ ξ hξ hξ' ↦ ?_⟩
+  have hP : (0 : ℝ) < A.scale n := Nat.cast_pos.mpr (A.prefix_product_pos (n + 1))
+  split_ifs with ht
+  case neg =>
+    exact spectralMoranData_fourier_upper_half_uniform s hs hs₁ hγ.le (by linarith)
+      hcost n ξ (le_of_not_ge ht) ((div_le_iff₀ hP).mpr (by
+        simpa only [Data.scale, Finset.prod_range_succ, Nat.cast_mul, mul_comm] using hξ'.le))
+  case pos =>
+    exact (spectralMoranData_fourier_lower_half_uniform s hs hs₁ hγ.le (by linarith)
+      hcost n ξ (div_pos (hP.trans_le hξ) hP) ht).trans
+        (mul_le_mul_of_nonneg_right (by linarith : C ≤ 9 * C)
+          (add_nonneg (div_nonneg (Real.rpow_nonneg (Nat.cast_nonneg _) _)
+            (div_pos (hP.trans_le hξ) hP).le) (Real.rpow_nonneg (Nat.cast_nonneg _) _)))
 
 private lemma eventually_construction_fourier_block_decay (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1)
     {a : ℝ} (ha : 0 < a) (has : a < s / 2) :
@@ -6019,14 +6078,23 @@ private lemma uniformTailLower_le_norm_fourier_tail_sq (A : Data) (L : ℕ → �
 
 private lemma spectralMoranData_base_ge (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
     27 ≤ (spectralMoranData s hs hs₁).base n := by
-  rw [spectralMoranData_base]
-  have hq : 2 ≤ constructionLength s n := by
-    have := constructionRank_pos hs n
-    have := constructionRank_lt hs hs₁ n
-    omega
-  exact (by norm_num : 27 ≤ 16 ^ 2).trans
-    ((Nat.pow_le_pow_left (constructionPrime_sixteen_le s hs hs₁ n) 2).trans
-      (Nat.pow_le_pow_right (by have := constructionPrime_sixteen_le s hs hs₁ n; omega) hq))
+  simpa only [spectralMoranData_base, show 3 ^ 3 = 27 by norm_num] using
+    (Nat.pow_le_pow_left (Nat.succ_le_of_lt ((constructionDegree_two_le hs hs₁ n).trans_lt
+      (constructionPrime_spec s hs hs₁ n).2.2.1)) 3).trans
+        (Nat.pow_le_pow_right (constructionPrime_spec s hs hs₁ n).1.pos
+          ((Nat.succ_le_succ (constructionRank_two_le hs n)).trans
+            (constructionRank_lt hs hs₁ n)))
+
+private lemma spectralMoranData_base_growth (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) (n : ℕ) :
+    27 ^ ((n + 1) * n) ≤ (spectralMoranData s hs hs₁).base n := by
+  calc
+    _ = (27 ^ n) ^ (n + 1) := by rw [← pow_mul, Nat.mul_comm n]
+    _ ≤ (∏ j ∈ Finset.range n, (spectralMoranData s hs hs₁).base j) ^ (n + 1) :=
+      Nat.pow_le_pow_left (by
+        simpa using Finset.prod_le_prod (s := Finset.range n) (f := fun _ ↦ 27)
+          (g := (spectralMoranData s hs hs₁).base) (fun _ _ ↦ Nat.zero_le _)
+          (fun j _ ↦ spectralMoranData_base_ge s hs hs₁ j)) (n + 1)
+    _ ≤ _ := (spectralMoranData_scale_separation s hs hs₁ n).le
 
 private lemma eventually_construction_finiteTailFactor_lower
     (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) :
