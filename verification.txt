@@ -1,14 +1,24 @@
 Release verification
 
+Verified source commit: c52f06dd2257fd62e539e4ad7d704315b8956b40
 Toolchain: leanprover/lean4:v4.32.1
+Mathlib revision: 520045ab14e26149ee970e2e617ca04b09bde5d6
 Module: Moran.Moran
-Source SHA-256: f924140c48647c1bea9ca2d2b380d41432aa12d97a0b3f3d6e14c105f76ad61c
+Source SHA-256: 7c29c4f5f96731f186aa06f913ce3bf510ad7fa0b2cb939747004c785d4d1b28
+
+Verification environment: macOS arm64, fresh clone from GitHub.
+The Lean toolchain was already installed and the Mathlib cache was reused.
+The Moran proof modules were compiled from source in the fresh checkout.
+This record and SHA256SUMS are updated separately from the proof source.
+
+lake exe cache get
+Exit code: 0
 
 lake build --wfail
 Exit code: 0
 Build completed successfully (3619 jobs).
 
-lake env lean MoranCheck.lean
+lake env lean -DwarningAsError=true MoranCheck.lean
 Exit code: 0
 
 Moran.exists_moran_measure (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) :
@@ -37,9 +47,3 @@ Moran.spectralMoranData_is_salem (s : ℝ) (hs : 0 < s) (hs₁ : s ≤ 1) :
 'Moran.spectralMoranData_has_spectrum' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Moran.spectralMoranSpectrum_countable' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Moran.spectralMoranData_is_salem' depends on axioms: [propext, Classical.choice, Quot.sound]
-
-Additional private-lemma axiom checks (Lean MCP):
-Moran.spectralMoranData_mask_error_uniform: [propext, Classical.choice, Quot.sound]
-Moran.spectralMoranData_fourier_blockwise: [propext, Classical.choice, Quot.sound]
-Moran.spectralMoranData_base_growth: [propext, Classical.choice, Quot.sound]
-Source scan: no sorry, admit, or project-local axiom declarations.
