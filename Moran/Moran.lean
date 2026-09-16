@@ -1,7 +1,3 @@
-/-
-Authors: Yuhang Xie
--/
-
 import Mathlib.Algebra.BigOperators.Group.Finset.Interval
 import Mathlib.Analysis.Asymptotics.SpecificAsymptotics
 import Mathlib.Analysis.Complex.ExponentialBounds
